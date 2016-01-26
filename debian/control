@@ -10,6 +10,6 @@ Vcs-Git: https://git.launchpad.net/~timvideos/+git/flterm
 
 Package: flterm
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Serial boot program for MiSoC
  flterm is a utility for flashing and communicating with MiSoC devices.
