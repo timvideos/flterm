@@ -1,0 +1,21 @@
+--- a/Makefile
++++ b/Makefile
+@@ -2,6 +2,7 @@
+ CC=gcc
+ RM ?= rm -f
+ PREFIX ?= /usr/local
++DESTDIR ?=
+ 
+ all: $(TARGETS)
+ 
+@@ -9,8 +10,8 @@
+ 	$(CC) -O2 -Wall -I../common -s -o $@ $<
+ 
+ install: flterm
+-	install -d $(PREFIX)/bin
+-	install -m755 -t $(PREFIX)/bin $^
++	install -d $(DESTDIR)$(PREFIX)/bin
++	install -m755 -t $(DESTDIR)$(PREFIX)/bin $^
+ 
+ .PHONY: all clean install
+ 
