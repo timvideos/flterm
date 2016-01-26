@@ -1,0 +1,15 @@
+Source: flterm
+Section: admin
+Priority: optional
+Maintainer: Stefano Rivera <stefanor@debian.org>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.6
+Homepage: https://github.com/m-labs/misoc
+Vcs-Browser: https://git.launchpad.net/~timvideos/+git/flterm?h=master
+Vcs-Git: https://git.launchpad.net/~timvideos/+git/flterm
+
+Package: flterm
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Serial boot program for MiSoC
+ flterm is a utility for flashing and communicating with MiSoC devices.

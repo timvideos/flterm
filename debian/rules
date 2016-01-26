@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+get-orig-source:
+	set -e; \
+		git clone --single-branch --depth 1 --branch=legacy \
+			https://github.com/m-labs/misoc/; \
+		cd misoc; \
+		version=$$(git log --date=format:%Y%m%d --pretty=format:%cd); \
+		dir=flterm-0+git$$version; \
+		mkdir -p $$dir; \
+		cp tools/* $$dir/; \
+		cp common/sfl.h $$dir/; \
+		cp /usr/share/common-licenses/GPL-3 $$dir/COPYING; \
+		tar -cJf ../flterm_0+git$$version.orig.tar.xz $$dir; \
+		cd ..; \
+		rm -rf misoc
