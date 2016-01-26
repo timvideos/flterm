@@ -3,6 +3,9 @@
 %:
 	dh $@
 
+override_dh_auto_install:
+	dh_auto_install -- PREFIX=/usr
+
 get-orig-source:
 	set -e; \
 		git clone --single-branch --depth 1 --branch=legacy \
