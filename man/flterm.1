@@ -1,0 +1,53 @@
+.\" Manpage for flterm.
+.\" Contact mithro@mithis.com to correct errors or typos.
+.TH man 1 "03 March 2017" "1.0" "flterm man page"
+.SH NAME
+flterm \- Serial boot program for MiSoC & LiteX
+.SH SYNOPSIS
+.B flterm
+\fB\--port\fR \fIport\fR
+[\fB\--speed\fR \fIspeed\fR]
+[\fB\--gdb-passthrough\fR \fIspeed\fR]
+[\fB\--debug\fR]
+[\fB\--kernel\fR \fIkernel_image\fR]
+[\fB\--kernel-adr\fR \fIkernel-adr\fR]
+[\fB\--cmdline\fR \fIcmdline\fR]
+[\fB\--cmdline-adr\fR \fIcmdline-adr\fR]
+[\fB\--initrd\fR \fIinitrd\fR]
+[\fB\--initrd-adr\fR \fIinitrd-adr\fR]
+[\fB\--log\fR \fIlog_file\fR]
+.SH DESCRIPTION
+flterm is a tool for loading data over serial. It seems to work well with really crappy / partially working serial ports.
+Allows firmware to be loaded onto the soft-CPU found inside
+MiSoC (https://github.com/m-labs/misoc) or
+LiteX (https://github.com/enjoy-digital/litex) FPGA SoCs.
+.SH OPTIONS
+.TP
+.BR \-\-port =\fIPORT\fR
+The serial port to open.
+.TP
+.BR \-\-speed =\fIspeed\fR
+The baud rate to open the serial port at (the alias --baud is supported). Default is 115200. Supported values are;
+.PP
+.nf
+.RS
+.RS
+9600
+19200
+38400
+57600
+115200
+230400
+.RE
+.RE
+.fi
+.PP
+.TP
+.BR \-\-kernel =\fIkernel_image\fR  \-\-kernel-adr =\fIkernel_adr\fR
+The kernel file and address to load it at. The file is read at time of loading and does not need to exist at the time of starting flterm.
+.SH SEE ALSO
+gdb(1), minicom(1), screen(1), cu(1), initrd(4)
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Tim 'mithro' Ansell (mithro@mithis.com)
