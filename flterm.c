@@ -24,16 +24,17 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <string.h>
 #include <ctype.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <poll.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <poll.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
+
 #include <sfl.h>
 
 #ifdef __linux__
