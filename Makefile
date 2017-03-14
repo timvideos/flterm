@@ -6,8 +6,10 @@ DESTDIR ?=
 
 all: $(TARGETS)
 
+GIT_VERSION=$(shell git describe)
+
 %: %.c
-	$(CC) -O2 -Wall -I. -s -o $@ $<
+	$(CC) -O2 -Wall -DGIT_VERSION='"$(GIT_VERSION)"' -I. -s -o $@ $<
 
 install: flterm
 	install -d $(DESTDIR)$(PREFIX)/bin

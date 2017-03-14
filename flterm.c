@@ -661,11 +661,8 @@ static const struct option options[] = {
 
 static void print_usage()
 {
-	fprintf(stderr, "Serial boot program for MiSoC - v. 2.4\n");
-	fprintf(stderr, "Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq\n");
-	fprintf(stderr, "Copyright (C) 2011 Michael Walle\n");
-	fprintf(stderr, "Copyright (C) 2004 MontaVista Software, Inc\n\n");
-
+	fprintf(stderr, "Serial boot program for MiSoC & LiteX - " GIT_VERSION "\n");
+	fprintf(stderr, "\n");
 	fprintf(stderr, "This program is free software: you can redistribute it and/or modify\n");
 	fprintf(stderr, "it under the terms of the GNU General Public License as published by\n");
 	fprintf(stderr, "the Free Software Foundation, version 3 of the License.\n\n");
