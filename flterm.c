@@ -1,5 +1,6 @@
 /*
- * MiSoC
+ * flterm
+ * Copyright (C) 2017 Tim 'mithro' Ansell
  * Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq
  * Copyright (C) 2011 Michael Walle
  * Copyright (C) 2004 MontaVista Software, Inc
