@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 	unsigned short wi;
 	unsigned short wo;
 	int i;
-	
+
 	if(argc != 3) {
 		fprintf(stderr, "Usage: byteswap <infile> <outfile>\n");
 		return 1;

@@ -86,18 +86,18 @@ static unsigned short crc16(const void *_buffer, int len)
 {
 	const unsigned char *buffer = (const unsigned char *)_buffer;
 	unsigned short crc;
-	
+
 	crc = 0;
 	while(len-- > 0)
 	    crc = crc16_table[((crc >> 8) ^ (*buffer++)) & 0xFF] ^ (crc << 8);
-	
+
 	return crc;
 }
 
 static int write_exact(int fd, const char *data, unsigned int length)
 {
 	int r;
-	
+
 	while(length > 0) {
 		r = write(fd, data, length);
 		if(r <= 0) return 0;
@@ -113,11 +113,11 @@ static int send_frame(int serialfd, struct sfl_frame *frame)
 	unsigned short int crc;
 	int retry;
 	char reply;
-	
+
 	crc = crc16(&frame->cmd, frame->length+1);
 	frame->crc[0] = (crc & 0xff00) >> 8;
 	frame->crc[1] = (crc & 0x00ff);
-	
+
 	retry = 0;
 	do {
 		if(!write_exact(serialfd, (char *)frame, frame->length+4)) {
@@ -151,44 +151,44 @@ static int upload_fd(int serialfd, const char *name, int firmwarefd, unsigned in
 	struct timeval t0;
 	struct timeval t1;
 	int millisecs;
-	
+
 	length = lseek(firmwarefd, 0, SEEK_END);
 	lseek(firmwarefd, 0, SEEK_SET);
-	
+
 	printf("[FLTERM] Uploading %s (%d bytes)...\n", name, length);
-	
+
 	gettimeofday(&t0, NULL);
-	
+
 	current_address = load_address;
 	position = 0;
 	while(1) {
 		printf("%d%%\r", 100*position/length);
 		fflush(stdout);
-	
+
 		readbytes = read(firmwarefd, &frame.payload[4], sizeof(frame.payload) - 4);
 		if(readbytes < 0) {
 			perror("[FLTERM] Unable to read image.");
 			return -1;
 		}
 		if(readbytes == 0) break;
-		
+
 		frame.length = readbytes+4;
 		frame.cmd = SFL_CMD_LOAD;
 		frame.payload[0] = (current_address & 0xff000000) >> 24;
 		frame.payload[1] = (current_address & 0x00ff0000) >> 16;
 		frame.payload[2] = (current_address & 0x0000ff00) >> 8;
 		frame.payload[3] = (current_address & 0x000000ff);
-		
+
 		if(!send_frame(serialfd, &frame)) return -1;
-		
+
 		current_address += readbytes;
 		position += readbytes;
 	}
-	
+
 	gettimeofday(&t1, NULL);
-	
+
 	millisecs = (t1.tv_sec - t0.tv_sec)*1000 + (t1.tv_usec - t0.tv_usec)/1000;
-	
+
 	printf("[FLTERM] Upload complete (%.1fKB/s).\n", 1000.0*(double)length/((double)millisecs*1024.0));
 	return length;
 }
@@ -203,9 +203,9 @@ static void answer_magic(int serialfd,
 {
 	int kernelfd, initrdfd;
 	struct sfl_frame frame;
-	
+
 	printf("[FLTERM] Received firmware download request from the device.\n");
-	
+
 	kernelfd = open(kernel_image, O_RDONLY);
 	if(kernelfd == -1) {
 		perror("[FLTERM] Unable to open kernel image (request ignored).");
@@ -222,7 +222,7 @@ static void answer_magic(int serialfd,
 	}
 
 	write_exact(serialfd, sfl_magic_ack, SFL_MAGIC_LEN);
-	
+
 	upload_fd(serialfd, "kernel", kernelfd, kernel_address);
 	if(cmdline != NULL) {
 		int len;
@@ -255,10 +255,10 @@ static void answer_magic(int serialfd,
 	}
 	if(initrdfd != -1) {
 		int len;
-		
+
 		len = upload_fd(serialfd, "initrd", initrdfd, initrd_address);
 		if(len <= 0) return;
-		
+
 		frame.length = 4;
 		frame.cmd = SFL_CMD_INITRDSTART;
 		frame.payload[0] = (initrd_address & 0xff000000) >> 24;
@@ -396,7 +396,7 @@ static void do_terminal(char *serial_port,
 	int rsp_pending = 0;
 	int c_cflag;
 	int custom_divisor;
-	
+
 	/* Open and configure the serial port */
 	if(log_path != NULL) {
 		logfd = fopen(log_path, "a+");
@@ -542,7 +542,7 @@ static void do_terminal(char *serial_port,
 			} else {
 				/* write to terminal */
 				write(0, &c, 1);
-			
+
 				if(kernel_image != NULL) {
 					if(c == sfl_magic_req[recognized]) {
 						recognized++;
@@ -561,7 +561,7 @@ static void do_terminal(char *serial_port,
 			}
 		}
 	}
-	
+
 	close(serialfd);
 
 	if(gdbfd != -1) close(gdbfd);
@@ -687,7 +687,7 @@ int main(int argc, char *argv[])
 	char *endptr;
 	char *log_path;
 	struct termios otty, ntty;
-	
+
 	/* Fetch command line arguments */
 	serial_port = NULL;
 	baud = 115200;
@@ -772,7 +772,7 @@ int main(int argc, char *argv[])
 
 	/* Banner */
 	printf("[FLTERM] Starting...\n");
-	
+
 	/* Set up stdin/out */
 	tcgetattr(0, &otty);
 	ntty = otty;
@@ -785,9 +785,9 @@ int main(int argc, char *argv[])
 		cmdline, cmdline_address,
 		initrd_image, initrd_address,
 		log_path);
-	
+
 	/* Restore stdin/out into their previous state */
 	tcsetattr(0, TCSANOW, &otty);
-	
+
 	return 0;
 }
