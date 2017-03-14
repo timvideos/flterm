@@ -630,7 +630,7 @@ static const struct option options[] = {
 		.val = OPTION_CMDLINE
 	},
 	{
-		.name = "cmdline-adr",
+		.name = "cmdline-address",
 		.has_arg = 1,
 		.val = OPTION_CMDLINEADR
 	},
@@ -653,6 +653,37 @@ static const struct option options[] = {
 		.name = "help",
 		.has_arg = 0,
 		.val = OPTION_HELP
+	},
+	/* Helpful aliases for addr */
+	{
+		.name = "kernel-addr",
+		.has_arg = 1,
+		.val = OPTION_KERNELADR
+	},
+	{
+		.name = "kernel-address",
+		.has_arg = 1,
+		.val = OPTION_KERNELADR
+	},
+	{
+		.name = "cmdline-adr",
+		.has_arg = 1,
+		.val = OPTION_CMDLINEADR
+	},
+	{
+		.name = "cmdline-addr",
+		.has_arg = 1,
+		.val = OPTION_CMDLINEADR
+	},
+	{
+		.name = "initrd-addr",
+		.has_arg = 1,
+		.val = OPTION_INITRDADR
+	},
+	{
+		.name = "initrd-address",
+		.has_arg = 1,
+		.val = OPTION_INITRDADR
 	},
 	{
 		.name = NULL
