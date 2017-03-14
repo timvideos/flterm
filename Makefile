@@ -6,7 +6,7 @@ PREFIX ?= /usr/local
 all: $(TARGETS)
 
 %: %.c
-	$(CC) -O2 -Wall -I../common -s -o $@ $<
+	$(CC) -O2 -Wall -I. -s -o $@ $<
 
 install: flterm
 	install -d $(PREFIX)/bin
