@@ -459,7 +459,11 @@ static void do_terminal(char *serial_port,
 	tcflush(serialfd, TCOFLUSH);
 	tcflush(serialfd, TCIFLUSH);
 
-	/* Prepare the fdset for poll() */
+	/* Prepare the fdset for poll()
+	 * fd[0] == stdin
+	 * fd[1] == serial port
+	 * fd[2] == gdb passthrough
+	 */
 	fds[0].fd = 0;
 	fds[0].events = POLLIN;
 	fds[1].fd = serialfd;
@@ -495,11 +499,13 @@ static void do_terminal(char *serial_port,
 		if(poll(&fds[0], (gdbfd == -1) ? 2 : 3, -1) < 0) break;
 		fcntl(serialfd, F_SETFL, flags);
 
+		/* Data from stdin */
 		if(fds[0].revents & POLLIN) {
 			if(read(0, &c, 1) <= 0) break;
 			if(write(serialfd, &c, 1) <= 0) break;
 		}
 
+		/* Data from gdb passthrough. */
 		if(fds[2].revents & POLLIN) {
 			rsp_pending = 1;
 			if(read(gdbfd, &c, 1) <= 0) break;
@@ -519,6 +525,7 @@ static void do_terminal(char *serial_port,
 			}
 		}
 
+		/* Signal from gdb passthrough. */
 		if(fds[2].revents & POLLHUP) {
 			/* close and reopen new pair */
 			close(gdbfd);
@@ -526,6 +533,7 @@ static void do_terminal(char *serial_port,
 			continue;
 		}
 
+		/* Data from serial port. */
 		if(fds[1].revents & POLLIN) {
 			if(read(serialfd, &c, 1) <= 0) break;
 
