@@ -423,7 +423,7 @@ static void do_terminal(char *serial_port,
 		case 115200: c_cflag = B115200; break;
 		case 230400: c_cflag = B230400; break;
 		default:
-			c_cflag = B38400;
+			c_cflag = B115200;
 			custom_divisor = 1;
 			break;
 	}
