@@ -2,6 +2,7 @@ TARGETS=flterm byteswap
 CC=gcc
 RM ?= rm -f
 PREFIX ?= /usr/local
+DESTDIR ?=
 
 all: $(TARGETS)
 
@@ -9,8 +10,8 @@ all: $(TARGETS)
 	$(CC) -O2 -Wall -I. -s -o $@ $<
 
 install: flterm
-	install -d $(PREFIX)/bin
-	install -m755 -t $(PREFIX)/bin $^
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m755 -t $(DESTDIR)$(PREFIX)/bin $^
 
 .PHONY: all clean install
 
