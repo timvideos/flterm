@@ -47,6 +47,17 @@
 
 #define GDBBUFLEN 1000
 
+enum line_end {
+	// cr - \r - Carriage return
+	// nl - \n - Newline
+	LINE_END_PASS,    // pass    - don't touch line endings
+	LINE_END_CR2,     // igncr   - ignore carriage return
+	LINE_END_CR2NL,   // cr2nl   - translate carriage return to newline
+	LINE_END_NL2,	  // ignnl   - ignore newline
+	LINE_END_NL2CR,   // nl2cr   - translate newline to carriage return
+	LINE_END_NL2CRNL, // nl2crnl - translate carriage return and then newline
+};
+
 unsigned int crc16_table[256] = {
 	0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
 	0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
@@ -380,8 +391,43 @@ static void gdb_process_packet(int infd, int outfd, int altfd)
 	}
 }
 
-static void do_terminal(char *serial_port,
-	int baud, int gdb_passthrough,
+/*
+ * Manually translate line endings when transmitting down the serial port.
+ */
+static int write_text(int serialfd, char c, enum line_end line_end) {
+	if (c == '\r') {
+		switch(line_end) {
+			case LINE_END_CR2:
+				return 1;
+			case LINE_END_CR2NL:
+				c = '\n';
+				break;
+			default:
+				break;
+		}
+	}
+	if (c == '\n') {
+		switch(line_end) {
+			case LINE_END_NL2:
+				return 1;
+			case LINE_END_NL2CR:
+				c = '\r';
+				break;
+			case LINE_END_NL2CRNL: {
+				char c2 = '\r';
+				int ret = write(serialfd, &c2, 1);
+				if(ret <= 0) return ret;
+			}
+			default:
+				break;
+		}
+	}
+	return write(serialfd, &c, 1);
+}
+
+static void do_terminal(
+	char *serial_port, int baud, enum line_end line_end,
+	int gdb_passthrough,
 	const char *kernel_image, unsigned int kernel_address,
 	const char *cmdline, unsigned int cmdline_address,
 	const char *initrd_image, unsigned int initrd_address,
@@ -504,7 +550,7 @@ static void do_terminal(char *serial_port,
 		/* Data from stdin */
 		if(fds[0].revents & POLLIN) {
 			if(read(0, &c, 1) <= 0) break;
-			if(write(serialfd, &c, 1) <= 0) break;
+			if(write_text(serialfd, c, line_end) <= 0) break;
 		}
 
 		/* Data from gdb passthrough. */
@@ -591,6 +637,7 @@ enum {
 	OPTION_INITRDADR,
 	OPTION_LOG,
 	OPTION_HELP,
+	OPTION_LINEENDINGS,
 };
 
 static const struct option options[] = {
@@ -692,6 +739,11 @@ static const struct option options[] = {
 		.val = OPTION_SPEED
 	},
 	{
+		.name = "line-endings",
+		.has_arg = 1,
+		.val = OPTION_LINEENDINGS,
+	},
+	{
 		.name = NULL
 	}
 };
@@ -702,10 +754,11 @@ static void print_usage()
 	fprintf(stderr, "\n");
 	fprintf(stderr, "This program is free software: you can redistribute it and/or modify\n");
 	fprintf(stderr, "it under the terms of the GNU General Public License as published by\n");
-	fprintf(stderr, "the Free Software Foundation, version 3 of the License.\n\n");
-
+	fprintf(stderr, "the Free Software Foundation, version 3 of the License.\n");
+	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage: flterm --port <port>\n");
-	fprintf(stderr, "              [--speed <speed>] [--gdb-passthrough] [--debug]\n");
+	fprintf(stderr, "              [--speed <speed>] [--line-endings <mode>]\n");
+	fprintf(stderr, "              [--gdb-passthrough] [--debug]\n");
 	fprintf(stderr, "              [--kernel <kernel_image> [--kernel-adr <address>]]\n");
 	fprintf(stderr, "              [--cmdline <cmdline> [--cmdline-adr <address>]]\n");
 	fprintf(stderr, "              [--initrd <initrd_image> [--initrd-adr <address>]]\n");
@@ -714,6 +767,15 @@ static void print_usage()
 	fprintf(stderr, "  kernel:  0x%08x\n", DEFAULT_KERNELADR);
 	fprintf(stderr, "  cmdline: 0x%08x\n", DEFAULT_CMDLINEADR);
 	fprintf(stderr, "  initrd:  0x%08x\n", DEFAULT_INITRDADR);
+	fprintf(stderr, "\n");
+	fprintf(stderr, "flterm can optional translate line endings going out the serial port\n");
+	fprintf(stderr, "using the --line-endings option. Valid values are:\n");
+	fprintf(stderr, " pass    - don't change line endings\n");
+	fprintf(stderr, " igncr   - ignore carriage return\n");
+	fprintf(stderr, " cr2nl   - translate carriage return to newline\n");
+	fprintf(stderr, " ignnl   - ignore newline\n");
+	fprintf(stderr, " nl2cr   - translate newline to carriage return\n");
+	fprintf(stderr, " nl2crnl - translate newline to carriage return then newline (default)\n");
 }
 
 int main(int argc, char *argv[])
@@ -721,6 +783,7 @@ int main(int argc, char *argv[])
 	int opt;
 	char *serial_port;
 	int baud;
+	enum line_end line_end = LINE_END_NL2CRNL;
 	int gdb_passthrough;
 	char *kernel_image;
 	unsigned int kernel_address;
@@ -806,6 +869,25 @@ int main(int argc, char *argv[])
 			case OPTION_HELP:
 				print_usage();
 				return 0;
+			case OPTION_LINEENDINGS:
+				if (false) {
+				} else 	if (strcasecmp(optarg, "pass") == 0) {
+					line_end = LINE_END_PASS;
+				} else 	if (strcasecmp(optarg, "igncr") == 0) {
+					line_end = LINE_END_CR2;
+				} else 	if (strcasecmp(optarg, "cr2nl") == 0) {
+					line_end = LINE_END_CR2NL;
+				} else 	if (strcasecmp(optarg, "ignnl") == 0) {
+					line_end = LINE_END_NL2;
+				} else 	if (strcasecmp(optarg, "nl2cr") == 0) {
+					line_end = LINE_END_NL2CR;
+				} else 	if (strcasecmp(optarg, "nl2crnl") == 0) {
+					line_end = LINE_END_NL2CRNL;
+				} else {
+					fprintf(stderr, "[FLTERM] Couldn't parse line-ending argument\n");
+					return 1;
+				}
+				return 0;
 		}
 	}
 
@@ -824,7 +906,9 @@ int main(int argc, char *argv[])
 	tcsetattr(0, TCSANOW, &ntty);
 
 	/* Do the bulk of the work */
-	do_terminal(serial_port, baud, gdb_passthrough,
+	do_terminal(
+		serial_port, baud, line_end,
+		gdb_passthrough,
 		kernel_image, kernel_address,
 		cmdline, cmdline_address,
 		initrd_image, initrd_address,
