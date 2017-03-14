@@ -685,6 +685,12 @@ static const struct option options[] = {
 		.has_arg = 1,
 		.val = OPTION_INITRDADR
 	},
+	/* Also allow --baud */
+	{
+		.name = "baud",
+		.has_arg = 1,
+		.val = OPTION_SPEED
+	},
 	{
 		.name = NULL
 	}
