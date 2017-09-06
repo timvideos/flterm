@@ -232,6 +232,18 @@ static int upload_fd(int serialfd, const char *name, int firmwarefd, unsigned in
 	return length;
 }
 
+/** \brief XMODEM transmitter implementation
+
+This XMODEM transmitter only sends 1k packets for simplicity of implementation.
+It is up to the user to ensure the receiver. Additionally, because XMODEM only
+transmits in multiples of 128 or 1024 (the latter only this case), this
+transmitter expects the receiver to strip trailing padding bytes when the final
+packet is sent. In other words, the receiver should already be file-size aware.
+
+\param [in] serialfd File descriptor for serial connection.
+\param [in] name Name of file to print to stdout.
+\param [in] firmwarefd File descriptor of file to send.
+*/
 static int upload_xmodem(int serialfd, const char *name, int firmwarefd)
 {
 	struct xmodem_packet packet;
@@ -253,8 +265,7 @@ static int upload_xmodem(int serialfd, const char *name, int firmwarefd)
 
 	gettimeofday(&t0, NULL);
 
-	// Abbreviated XMODEM transmitter- only sends 1024 byte packets. Expects
-	// receiver to
+	// Abbreviated XMODEM transmitter- only sends 1024 byte packets.
 	while(!done) {
 		char reply;
 		int readbytes;
@@ -320,14 +331,12 @@ static int upload_xmodem(int serialfd, const char *name, int firmwarefd)
 		}
 	}
 
-
 	gettimeofday(&t1, NULL);
 	millisecs = (t1.tv_sec - t0.tv_sec)*1000 + (t1.tv_usec - t0.tv_usec)/1000;
 
 	printf("[FLTERM] Upload complete (%.1fKB/s).\n", 1000.0*(double)length/((double)millisecs*1024.0));
 	return length;
 }
-
 
 static const char sfl_magic_req[SFL_MAGIC_LEN] = SFL_MAGIC_REQ;
 static const char sfl_magic_ack[SFL_MAGIC_LEN] = SFL_MAGIC_ACK;
@@ -430,6 +439,26 @@ static void answer_magic(int serialfd,
 	close(kernelfd);
 }
 
+/** \brief Transfer file using XMODEM protocol
+
+If flterm was started with the `--kernel` option, upon receiving an ASCII_C
+character, `flterm` will begin an XMODEM protcol style transfer to the
+remote target using 1k packets. It is up to the user to ensure the receiver
+is ready for an XMODEM transfer and can handle 1k packets. Because XMODEM
+does not specify an remote address within the protocol, the `--kernel-address`
+option is ignored for this protocol; the receiver should know what to do with
+the sent file.
+
+Unlike the SFL protocol, which sends _and_ expects a magic string that a user
+is unlikely to type in practice, the starting character for an XMODEM transfer
+is very common (ASCII 'C'). To prevent spurious transfers from initiating,
+only one XMODEM transfer can be started for each flterm spawned. If another
+file needs to be sent, a user should initiate a transfer on the receiver side
+and restart `flterm`.
+
+\param [in] serialfd File descriptor for serial connection.
+\param [in] kernel_image File name of file to open an send.
+*/
 static void answer_xmodem(int serialfd, const char *kernel_image) {
 	int kernelfd;
 
@@ -447,8 +476,6 @@ static void answer_xmodem(int serialfd, const char *kernel_image) {
 
 	close(kernelfd);
 }
-
-
 
 static int hex(unsigned char c)
 {
@@ -577,7 +604,7 @@ static void do_terminal(
 	char *log_path)
 {
 	int first_xstart = 1; /* XMODEM should only run once, and only if kernel
-	was supplied. */
+						   * was supplied. */
 	int serialfd;
 	int gdbfd = -1;
 	FILE *logfd = NULL;
@@ -757,7 +784,8 @@ static void do_terminal(
 						}
 					} else if(c != 'C') {
 						/* If XMODEM start not detected, continue looking
-						for SFL start. */
+						 * for SFL start.
+						 */
 						if(c == sfl_magic_req[0]) recognized = 1; else recognized = 0;
 					} else {
 						/* XMODEM detected */
