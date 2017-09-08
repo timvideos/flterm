@@ -36,6 +36,7 @@
 #include <unistd.h>
 
 #include <sfl.h>
+#include <xmodem.h>
 
 #ifdef __linux__
 #include <linux/serial.h>
@@ -104,6 +105,35 @@ static unsigned short crc16(const void *_buffer, int len)
 	while(len-- > 0)
 	    crc = crc16_table[((crc >> 8) ^ (*buffer++)) & 0xFF] ^ (crc << 8);
 
+	return crc;
+}
+
+/** \brief Calculate XMODEM CRC16
+
+The XMODEM CRC16 is different from the CRC16 used in SFL, and thus requires
+a separate function. The XMODEM CRC16 is a variant of the CCITT CRC16:
+http://reveng.sourceforge.net/crc-catalogue/16.htm#crc.cat-bits.16
+
+\param [in] data Array of data to calculate CRC16.
+\param [in] size Size of input array.
+*/
+unsigned short xmodem_crc16(unsigned char * data, size_t size)
+{
+	const unsigned int crc_poly = 0x1021;
+	unsigned int crc = 0x0000;
+
+	unsigned int octet_count;
+	unsigned char bit_count;
+	for(octet_count = 0; octet_count < size; octet_count++) {
+		crc = (crc ^ (unsigned int) (data[octet_count] & (0xFF)) << 8);
+		for(bit_count = 1; bit_count <= 8; bit_count++) {
+			if(crc & 0x8000) {
+				crc = (crc << 1) ^ crc_poly;
+			} else	{
+				crc <<= 1;
+			}
+		}
+	}
 	return crc;
 }
 
@@ -200,6 +230,112 @@ static int upload_fd(int serialfd, const char *name, int firmwarefd, unsigned in
 
 	gettimeofday(&t1, NULL);
 
+	millisecs = (t1.tv_sec - t0.tv_sec)*1000 + (t1.tv_usec - t0.tv_usec)/1000;
+
+	printf("[FLTERM] Upload complete (%.1fKB/s).\n", 1000.0*(double)length/((double)millisecs*1024.0));
+	return length;
+}
+
+/** \brief XMODEM transmitter implementation
+
+This XMODEM transmitter only sends 1k packets for simplicity of implementation.
+It is up to the user to ensure the receiver. Additionally, because XMODEM only
+transmits in multiples of 128 or 1024 (the latter only this case), this
+transmitter expects the receiver to strip trailing padding bytes when the final
+packet is sent. In other words, the receiver should already be file-size aware.
+
+\param [in] serialfd File descriptor for serial connection.
+\param [in] name Name of file to print to stdout.
+\param [in] firmwarefd File descriptor of file to send.
+*/
+static int upload_xmodem(int serialfd, const char *name, int firmwarefd)
+{
+	struct xmodem_packet packet;
+	unsigned char curr_packet = 1;
+	int less_than_1k = 0;
+	int firmware_pos = 0;
+	int err_count = 0;
+	int done = 0;
+	int length;
+	struct timeval t0;
+	struct timeval t1;
+	int millisecs;
+
+
+	length = lseek(firmwarefd, 0, SEEK_END);
+	lseek(firmwarefd, 0, SEEK_SET);
+
+	printf("[FLTERM] Uploading %s (%d bytes)...\n", name, length);
+
+	gettimeofday(&t0, NULL);
+
+	// Abbreviated XMODEM transmitter- only sends 1024 byte packets.
+	while(!done) {
+		char reply;
+		int readbytes;
+		unsigned short crc;
+
+		printf("%d%%\r", 100*firmware_pos/length);
+		fflush(stdout);
+
+		packet.start = less_than_1k ? SOH : STX;
+		packet.num = curr_packet;
+		packet.num_comp = ~packet.num;
+
+		readbytes = read(firmwarefd, &packet.payload, 1024);
+		if(readbytes < 0) {
+			perror("[FLTERM] Unable to read image.");
+			return -1;
+		}
+
+		// Pad final packet per XMODEM spec.
+		if(readbytes < sizeof(packet.payload)) {
+			done = 1;
+			memset(&packet.payload[0] + readbytes, CPMEOF, 1024 - readbytes);
+		}
+
+		crc = xmodem_crc16(packet.payload, 1024);
+		packet.crc[0] = (crc & 0xff00) >> 8;
+		packet.crc[1] = (crc & 0x00ff);
+
+		if(!write_exact(serialfd, (char *) &packet, 1029)) {
+			perror("[FLTERM] Unable to write to serial port.");
+			return 0;
+		}
+
+		read(serialfd, &reply, 1);
+
+		if(reply == ACK) {
+			if(!done) {
+				curr_packet++;
+				firmware_pos += 1024;
+				err_count = 0;
+			}
+		} else {
+			if(err_count < 11) {
+				lseek(firmwarefd, firmware_pos, SEEK_SET);
+				done = 0; // Last packet may need to be resent.
+				err_count++;
+			} else {
+				perror("[FLTERM] Error count exceeded while transmitting. Aborting.");
+				return 0;
+			}
+		}
+	}
+
+	{
+		const char eot = EOT;
+		char last_reply;
+		write_exact(serialfd, &eot, 1);
+		read(serialfd, &last_reply, 1);
+
+		if(last_reply != ACK) {
+			perror("[FLTERM] Sent EOT, but did not receive ACK. Aborting.");
+			return 0;
+		}
+	}
+
+	gettimeofday(&t1, NULL);
 	millisecs = (t1.tv_sec - t0.tv_sec)*1000 + (t1.tv_usec - t0.tv_usec)/1000;
 
 	printf("[FLTERM] Upload complete (%.1fKB/s).\n", 1000.0*(double)length/((double)millisecs*1024.0));
@@ -304,6 +440,45 @@ static void answer_magic(int serialfd,
 	printf("[FLTERM] Done.\n");
 
 	close(initrdfd);
+	close(kernelfd);
+}
+
+/** \brief Transfer file using XMODEM protocol
+
+If flterm was started with the `--kernel` option, upon receiving an ASCII_C
+character, `flterm` will begin an XMODEM protcol style transfer to the
+remote target using 1k packets. It is up to the user to ensure the receiver
+is ready for an XMODEM transfer and can handle 1k packets. Because XMODEM
+does not specify an remote address within the protocol, the `--kernel-address`
+option is ignored for this protocol; the receiver should know what to do with
+the sent file.
+
+Unlike the SFL protocol, which sends _and_ expects a magic string that a user
+is unlikely to type in practice, the starting character for an XMODEM transfer
+is very common (ASCII 'C'). To prevent spurious transfers from initiating,
+only one XMODEM transfer can be started for each flterm spawned. If another
+file needs to be sent, a user should initiate a transfer on the receiver side
+and restart `flterm`.
+
+\param [in] serialfd File descriptor for serial connection.
+\param [in] kernel_image File name of file to open an send.
+*/
+static void answer_xmodem(int serialfd, const char *kernel_image)
+{
+	int kernelfd;
+
+	printf("[FLTERM] Received XMODEM start char ('C') and kernel image specified.\n");
+
+	kernelfd = open(kernel_image, O_RDONLY);
+	if(kernelfd == -1) {
+		perror("[FLTERM] Unable to open kernel image (request ignored).");
+		return;
+	}
+
+	upload_xmodem(serialfd, "kernel", kernelfd);
+
+	printf("[FLTERM] Done. To do another XMODEM xfer, respawn flterm.\n");
+
 	close(kernelfd);
 }
 
@@ -433,6 +608,8 @@ static void do_terminal(
 	const char *initrd_image, unsigned int initrd_address,
 	char *log_path)
 {
+	int first_xstart = 1; /* XMODEM should only run once, and only if kernel
+						   * was supplied. */
 	int serialfd;
 	int gdbfd = -1;
 	FILE *logfd = NULL;
@@ -610,8 +787,17 @@ static void do_terminal(
 								cmdline, cmdline_address,
 								initrd_image, initrd_address);
 						}
-					} else {
+					} else if(c != 'C') {
+						/* If XMODEM start not detected, continue looking
+						 * for SFL start.
+						 */
 						if(c == sfl_magic_req[0]) recognized = 1; else recognized = 0;
+					} else {
+						/* XMODEM detected */
+						if(first_xstart) {
+							answer_xmodem(serialfd, kernel_image);
+							first_xstart = 0;
+						}
 					}
 				}
 			}
