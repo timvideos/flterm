@@ -124,17 +124,12 @@ unsigned short xmodem_crc16(unsigned char * data, size_t size)
 
 	unsigned int octet_count;
 	unsigned char bit_count;
-	for(octet_count = 0; octet_count < size; octet_count++)
-	{
+	for(octet_count = 0; octet_count < size; octet_count++) {
 		crc = (crc ^ (unsigned int) (data[octet_count] & (0xFF)) << 8);
-		for(bit_count = 1; bit_count <= 8; bit_count++)
-		{
-			if(crc & 0x8000)
-			{
+		for(bit_count = 1; bit_count <= 8; bit_count++) {
+			if(crc & 0x8000) {
 				crc = (crc << 1) ^ crc_poly;
-			}
-			else
-			{
+			} else	{
 				crc <<= 1;
 			}
 		}
