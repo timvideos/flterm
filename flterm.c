@@ -108,6 +108,15 @@ static unsigned short crc16(const void *_buffer, int len)
 	return crc;
 }
 
+/** \brief Calculate XMODEM CRC16
+
+The XMODEM CRC16 is different from the CRC16 used in SFL, and thus requires
+a separate function. The XMODEM CRC16 is a variant of the CCITT CRC16:
+http://reveng.sourceforge.net/crc-catalogue/16.htm#crc.cat-bits.16
+
+\param [in] data Array of data to calculate CRC16.
+\param [in] size Size of input array.
+*/
 unsigned short xmodem_crc16(unsigned char * data, size_t size)
 {
 	const unsigned int crc_poly = 0x1021;
@@ -459,7 +468,8 @@ and restart `flterm`.
 \param [in] serialfd File descriptor for serial connection.
 \param [in] kernel_image File name of file to open an send.
 */
-static void answer_xmodem(int serialfd, const char *kernel_image) {
+static void answer_xmodem(int serialfd, const char *kernel_image)
+{
 	int kernelfd;
 
 	printf("[FLTERM] Received XMODEM start char ('C') and kernel image specified.\n");
