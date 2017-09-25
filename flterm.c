@@ -1073,7 +1073,7 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "[FLTERM] Couldn't parse line-ending argument\n");
 					return 1;
 				}
-				return 0;
+				break;
 		}
 	}
 
