@@ -467,7 +467,7 @@ static void answer_xmodem(int serialfd, const char *kernel_image)
 {
 	int kernelfd;
 
-	printf("[FLTERM] Received XMODEM start char ('C') and kernel image specified.\n");
+	printf("[FLTERM] Received XMODEM start char ('C'); xmodem option and kernel image specified.\n");
 
 	kernelfd = open(kernel_image, O_RDONLY);
 	if(kernelfd == -1) {
@@ -602,14 +602,14 @@ static int write_text(int serialfd, char c, enum line_end line_end) {
 
 static void do_terminal(
 	char *serial_port, int baud, enum line_end line_end,
-	int gdb_passthrough,
+	int gdb_passthrough, int allow_xmodem,
 	const char *kernel_image, unsigned int kernel_address,
 	const char *cmdline, unsigned int cmdline_address,
 	const char *initrd_image, unsigned int initrd_address,
 	char *log_path)
 {
 	int first_xstart = 1; /* XMODEM should only run once, and only if kernel
-						   * was supplied. */
+						   * and xmodem options were supplied. */
 	int serialfd;
 	int gdbfd = -1;
 	FILE *logfd = NULL;
@@ -794,7 +794,7 @@ static void do_terminal(
 						if(c == sfl_magic_req[0]) recognized = 1; else recognized = 0;
 					} else {
 						/* XMODEM detected */
-						if(first_xstart) {
+						if(first_xstart && allow_xmodem) {
 							answer_xmodem(serialfd, kernel_image);
 							first_xstart = 0;
 						}
@@ -824,6 +824,7 @@ enum {
 	OPTION_LOG,
 	OPTION_HELP,
 	OPTION_LINEENDINGS,
+	OPTION_XMODEM,
 };
 
 static const struct option options[] = {
@@ -836,6 +837,11 @@ static const struct option options[] = {
 		.name = "gdb-passthrough",
 		.has_arg = 0,
 		.val = OPTION_GDB_PASSTHROUGH
+	},
+	{
+		.name = "xmodem",
+		.has_arg = 0,
+		.val = OPTION_XMODEM
 	},
 	{
 		.name = "debug",
@@ -944,7 +950,7 @@ static void print_usage()
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage: flterm --port <port>\n");
 	fprintf(stderr, "              [--speed <speed>] [--line-endings <mode>]\n");
-	fprintf(stderr, "              [--gdb-passthrough] [--debug]\n");
+	fprintf(stderr, "              [--gdb-passthrough] [--xmodem] [--debug]\n");
 	fprintf(stderr, "              [--kernel <kernel_image> [--kernel-adr <address>]]\n");
 	fprintf(stderr, "              [--cmdline <cmdline> [--cmdline-adr <address>]]\n");
 	fprintf(stderr, "              [--initrd <initrd_image> [--initrd-adr <address>]]\n");
@@ -971,6 +977,7 @@ int main(int argc, char *argv[])
 	int baud;
 	enum line_end line_end = LINE_END_NL2CRNL;
 	int gdb_passthrough;
+	int allow_xmodem;
 	char *kernel_image;
 	unsigned int kernel_address;
 	char *cmdline;
@@ -985,6 +992,7 @@ int main(int argc, char *argv[])
 	serial_port = NULL;
 	baud = 115200;
 	gdb_passthrough = 0;
+	allow_xmodem = 0;
 	kernel_image = NULL;
 	kernel_address = DEFAULT_KERNELADR;
 	cmdline = NULL;
@@ -1014,6 +1022,9 @@ int main(int argc, char *argv[])
 				break;
 			case OPTION_GDB_PASSTHROUGH:
 				gdb_passthrough = 1;
+				break;
+			case OPTION_XMODEM:
+				allow_xmodem = 1;
 				break;
 			case OPTION_KERNEL:
 				free(kernel_image);
@@ -1094,7 +1105,7 @@ int main(int argc, char *argv[])
 	/* Do the bulk of the work */
 	do_terminal(
 		serial_port, baud, line_end,
-		gdb_passthrough,
+		gdb_passthrough, allow_xmodem,
 		kernel_image, kernel_address,
 		cmdline, cmdline_address,
 		initrd_image, initrd_address,
