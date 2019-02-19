@@ -24,10 +24,12 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
+
 #include <ctype.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -600,6 +602,16 @@ static int write_text(int serialfd, char c, enum line_end line_end) {
 	return write(serialfd, &c, 1);
 }
 
+void sig_func(int sig)
+{
+      write(1, "Caught signal 03\n", 17);
+/* need something like this to reset io
+ * else keyboard echo is off
+ * tcsetattr(0, TCSANOW, &otty);
+ */
+      exit(0);
+}
+
 static void do_terminal(
 	char *serial_port, int baud, enum line_end line_end,
 	int gdb_passthrough, int allow_xmodem,
@@ -693,6 +705,8 @@ static void do_terminal(
 	fds[0].events = POLLIN;
 	fds[1].fd = serialfd;
 	fds[1].events = POLLIN;
+
+    signal(SIGINT,sig_func); //Install the signal handler
 
 	recognized = 0;
 	flags = fcntl(serialfd, F_GETFL, 0);
