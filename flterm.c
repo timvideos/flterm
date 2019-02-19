@@ -50,6 +50,8 @@
 
 #define GDBBUFLEN 1000
 
+struct termios otty, ntty;
+
 enum line_end {
 	// cr - \r - Carriage return
 	// nl - \n - Newline
@@ -604,13 +606,11 @@ static int write_text(int serialfd, char c, enum line_end line_end) {
 
 void sig_func(int sig)
 {
-      write(1, "Caught signal 03\n", 17);
-/* need something like this to reset io
- * else keyboard echo is off
- * tcsetattr(0, TCSANOW, &otty);
- */
-      exit(0);
+	write(1, "Caught signal 03 around line 609\n", 34);
+	tcsetattr(0, TCSANOW, &otty);
+	exit(0);
 }
+
 
 static void do_terminal(
 	char *serial_port, int baud, enum line_end line_end,
@@ -648,6 +648,8 @@ static void do_terminal(
 		perror("Unable to open serial port");
 		return;
 	}
+
+	signal(SIGINT,sig_func); //Install the ^c signal handler
 
 	custom_divisor = 0;
 	switch(baud) {
@@ -705,8 +707,6 @@ static void do_terminal(
 	fds[0].events = POLLIN;
 	fds[1].fd = serialfd;
 	fds[1].events = POLLIN;
-
-    signal(SIGINT,sig_func); //Install the signal handler
 
 	recognized = 0;
 	flags = fcntl(serialfd, F_GETFL, 0);
@@ -1000,7 +1000,6 @@ int main(int argc, char *argv[])
 	unsigned int initrd_address;
 	char *endptr;
 	char *log_path;
-	struct termios otty, ntty;
 
 	/* Fetch command line arguments */
 	serial_port = NULL;
