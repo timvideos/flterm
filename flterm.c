@@ -604,13 +604,19 @@ static int write_text(int serialfd, char c, enum line_end line_end) {
 	return write(serialfd, &c, 1);
 }
 
-void sig_func(int sig)
+void get_out()
 {
-	write(1, "Caught signal 03 around line 609\n", 34);
+	write(1, "Resetting stdio\n", 16);
+	/* Restore stdin/out into their previous state */
 	tcsetattr(0, TCSANOW, &otty);
 	exit(0);
 }
 
+void sig_func(int sig)
+{
+	write(1, "Caught signal 03\n", 17);
+	get_out();
+}
 
 static void do_terminal(
 	char *serial_port, int baud, enum line_end line_end,
@@ -648,8 +654,6 @@ static void do_terminal(
 		perror("Unable to open serial port");
 		return;
 	}
-
-	signal(SIGINT,sig_func); //Install the ^c signal handler
 
 	custom_divisor = 0;
 	switch(baud) {
@@ -741,6 +745,8 @@ static void do_terminal(
 		/* Data from stdin */
 		if(fds[0].revents & POLLIN) {
 			if(read(0, &c, 1) <= 0) break;
+			/* exit on ^d */
+            if(c=='\04') get_out();
 			if(write_text(serialfd, c, line_end) <= 0) break;
 		}
 
@@ -1107,13 +1113,15 @@ int main(int argc, char *argv[])
 	}
 
 	/* Banner */
-	printf("[FLTERM] Starting...\n");
+	printf("[FLTERM] v2.6.0 Starting...\n");
 
 	/* Set up stdin/out */
 	tcgetattr(0, &otty);
 	ntty = otty;
 	ntty.c_lflag &= ~(ECHO | ICANON);
 	tcsetattr(0, TCSANOW, &ntty);
+
+	signal(SIGINT, sig_func); //Install the ^c signal handler
 
 	/* Do the bulk of the work */
 	do_terminal(
