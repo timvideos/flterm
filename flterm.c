@@ -25,7 +25,6 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-
 #include <ctype.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -50,8 +49,6 @@
 #define DEFAULT_INITRDADR	(0x41002000)
 
 #define GDBBUFLEN 1000
-
-struct termios otty, ntty;
 
 enum line_end {
 	// cr - \r - Carriage return
@@ -1010,6 +1007,7 @@ int main(int argc, char *argv[])
 	unsigned int initrd_address;
 	char *endptr;
 	char *log_path;
+	struct termios otty, ntty;
 
 	/* Fetch command line arguments */
 	serial_port = NULL;
