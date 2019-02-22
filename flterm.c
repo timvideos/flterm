@@ -1,5 +1,6 @@
 /*
  * flterm
+ * Copyright (C) 2019 Ewen McNeill
  * Copyright (C) 2017 Tim 'mithro' Ansell
  * Copyright (C) 2007, 2008, 2009, 2010, 2011 Sebastien Bourdeauducq
  * Copyright (C) 2011 Michael Walle
@@ -28,6 +29,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,6 +97,8 @@ unsigned int crc16_table[256] = {
 };
 
 static int debug = 0;
+
+static bool run_terminal = true;
 
 static unsigned short crc16(const void *_buffer, int len)
 {
@@ -600,6 +604,13 @@ static int write_text(int serialfd, char c, enum line_end line_end) {
 	return write(serialfd, &c, 1);
 }
 
+static void handle_sigint(int _sig)
+{
+	/* Indicate do_terminal() should exit, install default handler again */
+	run_terminal = false;
+	signal(SIGINT, SIG_DFL);
+}
+
 static void do_terminal(
 	char *serial_port, int baud, enum line_end line_end,
 	int gdb_passthrough, int allow_xmodem,
@@ -621,6 +632,10 @@ static void do_terminal(
 	int rsp_pending = 0;
 	int c_cflag;
 	int custom_divisor;
+
+	/* Install signal handler, so that we exit cleanly on ctrl-c */
+	run_terminal = true;
+	(void)signal(SIGINT, handle_sigint);
 
 	/* Open and configure the serial port */
 	if(log_path != NULL) {
@@ -696,7 +711,7 @@ static void do_terminal(
 
 	recognized = 0;
 	flags = fcntl(serialfd, F_GETFL, 0);
-	while(1) {
+	while(run_terminal) {
 		if(gdbfd == -1 && gdb_passthrough) {
 			gdbfd = open("/dev/ptmx", O_RDWR);
 			if(grantpt(gdbfd) != 0) {
@@ -804,6 +819,7 @@ static void do_terminal(
 		}
 	}
 
+	signal(SIGINT, SIG_DFL);
 	close(serialfd);
 
 	if(gdbfd != -1) close(gdbfd);
@@ -1113,6 +1129,8 @@ int main(int argc, char *argv[])
 
 	/* Restore stdin/out into their previous state */
 	tcsetattr(0, TCSANOW, &otty);
+
+	printf("\n[FLTERM] Exiting...\n");
 
 	return 0;
 }
