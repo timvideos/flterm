@@ -742,6 +742,11 @@ static void do_terminal(
 		/* Data from stdin */
 		if(fds[0].revents & POLLIN) {
 			if(read(0, &c, 1) <= 0) break;
+			if(c=='\04') {
+				/* exit on ^d */
+				run_terminal = false;
+				break;
+			}
 			if(write_text(serialfd, c, line_end) <= 0) break;
 		}
 
@@ -1110,7 +1115,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Banner */
-	printf("[FLTERM] Starting...\n");
+	printf("[FLTERM] v2.8.2 Starting...\n");
 
 	/* Set up stdin/out */
 	tcgetattr(0, &otty);
