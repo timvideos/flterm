@@ -1115,8 +1115,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Banner */
-	printf("[FLTERM] v2.8.2 Starting...\n");
-
+	printf("[FLTERM] " GIT_VERSION " Starting...\n");
 	/* Set up stdin/out */
 	tcgetattr(0, &otty);
 	ntty = otty;
