@@ -742,7 +742,7 @@ static void do_terminal(
 		/* Data from stdin */
 		if(fds[0].revents & POLLIN) {
 			if(read(0, &c, 1) <= 0) break;
-            if(c=='\04') {
+			if(c=='\04') {
 			/* exit on ^d */
 				run_terminal = false;
 				break;
