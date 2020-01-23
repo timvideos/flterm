@@ -13,7 +13,7 @@ GIT_VERSION=$(shell git describe)
 
 install: flterm
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install -m755 -t $(DESTDIR)$(PREFIX)/bin $^
+	install -m755 $^ $(DESTDIR)$(PREFIX)/bin
 
 .PHONY: all clean install
 
